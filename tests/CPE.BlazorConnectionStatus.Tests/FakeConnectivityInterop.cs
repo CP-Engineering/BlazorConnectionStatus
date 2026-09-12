@@ -6,9 +6,9 @@ namespace CPE.BlazorConnectionStatus.Tests;
 /// Stands in for the browser. Records what the monitor asked for and lets a test push
 /// observations back at whatever moment the test cares about.
 /// </summary>
-internal sealed class FakeConnectionStatusInterop : IConnectionStatusInterop
+internal sealed class FakeConnectivityInterop : IConnectivityInterop
 {
-    private DotNetObjectReference<ConnectionStatusMonitor>? _callback;
+    private DotNetObjectReference<ConnectivityMonitor>? _callback;
 
     public int StartCount { get; private set; }
 
@@ -16,7 +16,7 @@ internal sealed class FakeConnectionStatusInterop : IConnectionStatusInterop
 
     public int DisposeCount { get; private set; }
 
-    public ConnectionStatusOptions? ReceivedOptions { get; private set; }
+    public ConnectivityOptions? ReceivedOptions { get; private set; }
 
     /// <summary>Set to have <see cref="StartAsync"/> fail, as a browser refusing the module would.</summary>
     public Exception? StartException { get; set; }
@@ -28,8 +28,8 @@ internal sealed class FakeConnectionStatusInterop : IConnectionStatusInterop
     public bool? AutoAnswer { get; set; }
 
     public Task StartAsync(
-        DotNetObjectReference<ConnectionStatusMonitor> callback,
-        ConnectionStatusOptions options,
+        DotNetObjectReference<ConnectivityMonitor> callback,
+        ConnectivityOptions options,
         CancellationToken cancellationToken = default)
     {
         StartCount++;

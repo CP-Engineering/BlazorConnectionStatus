@@ -13,30 +13,30 @@ namespace CPE.BlazorConnectionStatus;
 /// <see cref="StartAsync(CancellationToken)"/> is called, so the type is safe to resolve during
 /// prerendering.
 /// </remarks>
-public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
+public sealed class ConnectivityMonitor : IConnectivityMonitor
 {
-    private readonly IConnectionStatusInterop _interop;
-    private readonly ConnectionStatusOptions _options;
-    private readonly List<TaskCompletionSource<ConnectionState>> _pending = new();
+    private readonly IConnectivityInterop _interop;
+    private readonly ConnectivityOptions _options;
+    private readonly List<TaskCompletionSource<ConnectivityState>> _pending = new();
 
-    private DotNetObjectReference<ConnectionStatusMonitor>? _selfReference;
+    private DotNetObjectReference<ConnectivityMonitor>? _selfReference;
     private bool _started;
     private bool _disposed;
 
-    internal ConnectionStatusMonitor(IConnectionStatusInterop interop, ConnectionStatusOptions options)
+    internal ConnectivityMonitor(IConnectivityInterop interop, ConnectivityOptions options)
     {
         _interop = interop ?? throw new ArgumentNullException(nameof(interop));
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     /// <inheritdoc />
-    public ConnectionState State { get; private set; } = ConnectionState.Unknown;
+    public ConnectivityState State { get; private set; } = ConnectivityState.Unknown;
 
     /// <inheritdoc />
-    public bool IsOnline => State == ConnectionState.Online;
+    public bool IsOnline => State == ConnectivityState.Online;
 
     /// <inheritdoc />
-    public event EventHandler<ConnectionState>? StatusChanged;
+    public event EventHandler<ConnectivityState>? StatusChanged;
 
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -69,7 +69,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
     }
 
     /// <inheritdoc />
-    public async Task<ConnectionState> CheckNowAsync(CancellationToken cancellationToken = default)
+    public async Task<ConnectivityState> CheckNowAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
@@ -79,7 +79,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
                 $"Call {nameof(StartAsync)} before {nameof(CheckNowAsync)}.");
         }
 
-        var completion = new TaskCompletionSource<ConnectionState>(
+        var completion = new TaskCompletionSource<ConnectivityState>(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         lock (_pending)
@@ -90,7 +90,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
         using var registration = cancellationToken.Register(
             static state =>
             {
-                var (monitor, source) = ((ConnectionStatusMonitor, TaskCompletionSource<ConnectionState>))state!;
+                var (monitor, source) = ((ConnectivityMonitor, TaskCompletionSource<ConnectivityState>))state!;
                 monitor.Forget(source);
                 source.TrySetCanceled();
             },
@@ -122,11 +122,11 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
             return;
         }
 
-        var observed = isOnline ? ConnectionState.Online : ConnectionState.Offline;
+        var observed = isOnline ? ConnectivityState.Online : ConnectivityState.Offline;
         var changed = State != observed;
         State = observed;
 
-        TaskCompletionSource<ConnectionState>[] waiting;
+        TaskCompletionSource<ConnectivityState>[] waiting;
         lock (_pending)
         {
             waiting = _pending.ToArray();
@@ -154,7 +154,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
 
         _disposed = true;
 
-        TaskCompletionSource<ConnectionState>[] waiting;
+        TaskCompletionSource<ConnectivityState>[] waiting;
         lock (_pending)
         {
             waiting = _pending.ToArray();
@@ -180,7 +180,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
         StatusChanged = null;
     }
 
-    private void Forget(TaskCompletionSource<ConnectionState> completion)
+    private void Forget(TaskCompletionSource<ConnectivityState> completion)
     {
         lock (_pending)
         {
@@ -192,7 +192,7 @@ public sealed class ConnectionStatusMonitor : IConnectionStatusMonitor
     {
         if (_disposed)
         {
-            throw new ObjectDisposedException(nameof(ConnectionStatusMonitor));
+            throw new ObjectDisposedException(nameof(ConnectivityMonitor));
         }
     }
 }

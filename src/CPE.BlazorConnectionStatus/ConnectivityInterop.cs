@@ -6,7 +6,7 @@ namespace CPE.BlazorConnectionStatus;
 /// Loads the library's own ES module and drives one instance of it. The module ships inside the
 /// package, so consumers add no script tag of their own.
 /// </summary>
-internal sealed class ConnectionStatusInterop : IConnectionStatusInterop
+internal sealed class ConnectivityInterop : IConnectivityInterop
 {
     private const string ModulePath =
         "./_content/CPE.BlazorConnectionStatus/connection-status.js";
@@ -17,14 +17,14 @@ internal sealed class ConnectionStatusInterop : IConnectionStatusInterop
     private IJSObjectReference? _handle;
     private bool _disposed;
 
-    public ConnectionStatusInterop(IJSRuntime jsRuntime)
+    public ConnectivityInterop(IJSRuntime jsRuntime)
     {
         _jsRuntime = jsRuntime ?? throw new ArgumentNullException(nameof(jsRuntime));
     }
 
     public async Task StartAsync(
-        DotNetObjectReference<ConnectionStatusMonitor> callback,
-        ConnectionStatusOptions options,
+        DotNetObjectReference<ConnectivityMonitor> callback,
+        ConnectivityOptions options,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

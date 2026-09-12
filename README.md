@@ -10,9 +10,41 @@ events with an optional HTTP `HEAD` probe on an interval, and reports the combin
 
 Targets `net8.0` and `net10.0`. MIT.
 
-**Versioning:** 0.x while the API settles. It is complete and tested, but no application has shipped
-on it yet — breaking changes will land in a minor bump rather than be smuggled into a patch. 1.0.0
-once it has run in a real app for a while.
+**Versioning:** 0.x while the API settles. Breaking changes land in a minor bump rather than being
+smuggled into a patch. 1.0.0 once it has run in a real app for a while.
+
+### 0.10.0 — breaking
+
+The public types moved from `ConnectionStatus*` to `Connectivity*` names. Members and behaviour are
+unchanged; only the names moved.
+
+| 0.9.0 | 0.10.0 |
+| --- | --- |
+| `ConnectionState` | `ConnectivityState` |
+| `IConnectionStatusMonitor` | `IConnectivityMonitor` |
+| `ConnectionStatusOptions` | `ConnectivityOptions` |
+
+```diff
+-if (Connection.State == ConnectionState.Online)
++if (Connection.State == ConnectivityState.Online)
+```
+
+`AddBlazorConnectionStatus`, the namespace, and the package id are unchanged.
+
+**Why "Connectivity".** `ConnectionState` collided with `System.Data.ConnectionState`. Any file
+with `using System.Data` got `CS0104: ambiguous reference` and had to alias one of the two — and in
+an offline-first app with a local database, that's most files. The collision was ours to fix rather
+than every consumer's to work around, so the enum was renamed and the rest of the public surface
+followed it for consistency.
+
+`BrowserConnectionState` was the other candidate and was rejected. The premise of this library is
+that it does *not* report the browser's opinion: `navigator.onLine` is the browser's answer, and
+the reason this package exists is that the browser's answer is the wrong one. Naming the type after
+the thing it deliberately moved past would have been backwards.
+
+The package and namespace keep `ConnectionStatus` because 0.9.0 was already published under it.
+That's a small inconsistency, knowingly accepted — a package id is not worth abandoning over
+vocabulary.
 
 ## Install
 
@@ -36,7 +68,7 @@ builder.Services.AddBlazorConnectionStatus(options =>
 
 ```razor
 @implements IAsyncDisposable
-@inject IConnectionStatusMonitor Connection
+@inject IConnectivityMonitor Connection
 
 <span class="badge @(Connection.IsOnline ? "bg-success" : "bg-danger")">
     @Connection.State
@@ -54,7 +86,7 @@ builder.Services.AddBlazorConnectionStatus(options =>
         await Connection.StartAsync();
     }
 
-    private void OnStatusChanged(object? sender, ConnectionState state)
+    private void OnStatusChanged(object? sender, ConnectivityState state)
         => InvokeAsync(StateHasChanged);
 
     public async ValueTask DisposeAsync()
@@ -68,7 +100,7 @@ builder.Services.AddBlazorConnectionStatus(options =>
 Before something that must not be half-done offline:
 
 ```csharp
-if (await Connection.CheckNowAsync() != ConnectionState.Online)
+if (await Connection.CheckNowAsync() != ConnectivityState.Online)
 {
     // queue it instead
 }
@@ -78,11 +110,11 @@ if (await Connection.CheckNowAsync() != ConnectionState.Online)
 
 | Member | Notes |
 | --- | --- |
-| `ConnectionState State` | `Unknown`, `Online` or `Offline`. `Unknown` until the first observation. |
+| `ConnectivityState State` | `Unknown`, `Online` or `Offline`. `Unknown` until the first observation. |
 | `bool IsOnline` | True only for `Online`. `Unknown` reads as false — read `State` if that matters. |
-| `event EventHandler<ConnectionState> StatusChanged` | Raised on change only, never on a repeat. |
+| `event EventHandler<ConnectivityState> StatusChanged` | Raised on change only, never on a repeat. |
 | `Task StartAsync(CancellationToken)` | Loads the module and takes a first observation. Idempotent. |
-| `Task<ConnectionState> CheckNowAsync(CancellationToken)` | Probes now and completes with the answer. |
+| `Task<ConnectivityState> CheckNowAsync(CancellationToken)` | Probes now and completes with the answer. |
 | `ValueTask DisposeAsync()` | Tears down the timer, listeners and module. |
 
 ### Options
@@ -119,8 +151,8 @@ This is a clean break, not a drop-in replacement.
 | Before | Now |
 | --- | --- |
 | `<script src="_content/Blazor.ConnectionStatusDetector/connection.js">` in `index.html` | Delete it. The module loads itself. |
-| `IConnectionStatusDetectorService` | `IConnectionStatusMonitor` |
-| `bool IsOnline` only | `ConnectionState State` with a real `Unknown`, plus `IsOnline` |
+| `IConnectionStatusDetectorService` | `IConnectivityMonitor` |
+| `bool IsOnline` only | `ConnectivityState State` with a real `Unknown`, plus `IsOnline` |
 | Interop started in the constructor | Explicit `StartAsync()` |
 | Wait for the next interval | `CheckNowAsync()` |
 | `window.Connection` global | ES module, one instance per monitor |
@@ -135,4 +167,4 @@ npm test             # the ES module, under jsdom with fetch stubbed
 
 The C# tests fake the JS boundary; the vitest suite drives the real module with a stubbed `fetch`,
 including timeout, error status, network failure and adapter-drop paths. The boundary between them
-is `IConnectionStatusInterop` — the only part that needs a real browser.
+is `IConnectivityInterop` — the only part that needs a real browser.

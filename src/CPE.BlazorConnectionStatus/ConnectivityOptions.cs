@@ -3,7 +3,7 @@ namespace CPE.BlazorConnectionStatus;
 /// <summary>
 /// How the monitor decides whether the app is online.
 /// </summary>
-public sealed class ConnectionStatusOptions
+public sealed class ConnectivityOptions
 {
     /// <summary>
     /// URL to probe with an HTTP HEAD request. Leave null to trust the browser's own

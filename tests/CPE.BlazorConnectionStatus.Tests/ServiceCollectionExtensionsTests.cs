@@ -19,10 +19,10 @@ public class ServiceCollectionExtensionsTests
         // Async disposal throughout: the monitor is IAsyncDisposable only, which is what Blazor
         // uses for scopes, and a synchronous container Dispose would throw because of it.
         await using var provider = services.BuildServiceProvider();
-        var monitor = provider.GetRequiredService<IConnectionStatusMonitor>();
+        var monitor = provider.GetRequiredService<IConnectivityMonitor>();
 
         Assert.NotNull(monitor);
-        Assert.Equal(ConnectionState.Unknown, monitor.State);
+        Assert.Equal(ConnectivityState.Unknown, monitor.State);
     }
 
     [Fact]
@@ -37,12 +37,12 @@ public class ServiceCollectionExtensionsTests
         await using var second = provider.CreateAsyncScope();
 
         Assert.NotSame(
-            first.ServiceProvider.GetRequiredService<IConnectionStatusMonitor>(),
-            second.ServiceProvider.GetRequiredService<IConnectionStatusMonitor>());
+            first.ServiceProvider.GetRequiredService<IConnectivityMonitor>(),
+            second.ServiceProvider.GetRequiredService<IConnectivityMonitor>());
 
         Assert.Same(
-            first.ServiceProvider.GetRequiredService<IConnectionStatusMonitor>(),
-            first.ServiceProvider.GetRequiredService<IConnectionStatusMonitor>());
+            first.ServiceProvider.GetRequiredService<IConnectivityMonitor>(),
+            first.ServiceProvider.GetRequiredService<IConnectivityMonitor>());
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class ServiceCollectionExtensionsTests
         services.AddBlazorConnectionStatus();
 
         var provider = services.BuildServiceProvider();
-        _ = provider.GetRequiredService<IConnectionStatusMonitor>();
+        _ = provider.GetRequiredService<IConnectivityMonitor>();
 
         Assert.Throws<InvalidOperationException>(() => provider.Dispose());
     }

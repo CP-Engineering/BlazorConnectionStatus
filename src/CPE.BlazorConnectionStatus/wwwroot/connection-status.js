@@ -4,6 +4,11 @@
 // Every observation is reported to .NET, changed or not, because the .NET side is what decides
 // whether an observation is worth raising an event for, and because CheckNowAsync waits for one.
 
+// PAIRED WITH C#: ConnectivityMonitor.OnConnectionStatusObserved. Nothing tests the two names
+// against each other — the .NET tests call the method directly and these tests assert this
+// constant — so a rename on one side alone breaks only at run time, in a browser. Deliberately
+// left unrenamed when the public types moved to "Connectivity" names: it is a wire name a
+// consumer never types, so the churn would have been all risk and no benefit.
 const DOTNET_CALLBACK = 'OnConnectionStatusObserved';
 
 /**
@@ -19,7 +24,7 @@ function bust(url) {
 /**
  * Creates one monitor instance.
  * @param {{ invokeMethodAsync: (name: string, ...args: unknown[]) => Promise<unknown> }} callback
- *   A DotNetObjectReference to the ConnectionStatusMonitor.
+ *   A DotNetObjectReference to the ConnectivityMonitor.
  * @param {{ pingUrl: string|null, pingIntervalMs: number, pingTimeoutMs: number }} options
  * @returns {{ checkNow: () => Promise<void>, dispose: () => void }}
  */

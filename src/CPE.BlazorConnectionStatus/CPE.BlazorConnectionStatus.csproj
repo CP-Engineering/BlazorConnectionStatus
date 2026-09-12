@@ -11,10 +11,11 @@
 
   <PropertyGroup>
     <PackageId>CPE.BlazorConnectionStatus</PackageId>
-    <!-- 0.x deliberately: the API has never had a consumer. DVMApp is the first, and anything it
-         proves awkward can change in 0.10.0 without pretending the break did not happen. 1.0.0 when
-         DVMApp is running on it. -->
-    <Version>0.9.0</Version>
+    <!-- 0.x deliberately: the API had never had a consumer at 0.9.0. It earned its keep on the
+         first integration - `ConnectionState` collided with `System.Data.ConnectionState`, which
+         every consumer using ADO.NET or Dapper would have hit. Renamed to `ConnectivityState` in
+         0.10.0: breaking, and honestly numbered as such. 1.0.0 when DVMApp is running on it. -->
+    <Version>0.10.0</Version>
     <Authors>CPE</Authors>
     <Company>CPE</Company>
     <Description>Connectivity monitoring for Blazor WebAssembly that reports whether the app can actually reach a server, not just whether the network adapter is up. Raises online/offline changes from browser events plus an optional HTTP HEAD probe on an interval, which is what catches "connected to the router, no internet".</Description>

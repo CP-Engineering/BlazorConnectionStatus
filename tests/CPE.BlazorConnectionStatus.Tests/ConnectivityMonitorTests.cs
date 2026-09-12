@@ -4,13 +4,13 @@ namespace CPE.BlazorConnectionStatus.Tests;
 /// The state machine, exercised without a browser. The JavaScript boundary is faked; everything
 /// these tests cover is the part that decides what the app sees.
 /// </summary>
-public class ConnectionStatusMonitorTests
+public class ConnectivityMonitorTests
 {
-    private static (ConnectionStatusMonitor Monitor, FakeConnectionStatusInterop Interop) Create(
-        ConnectionStatusOptions? options = null)
+    private static (ConnectivityMonitor Monitor, FakeConnectivityInterop Interop) Create(
+        ConnectivityOptions? options = null)
     {
-        var interop = new FakeConnectionStatusInterop();
-        var monitor = new ConnectionStatusMonitor(interop, options ?? new ConnectionStatusOptions());
+        var interop = new FakeConnectivityInterop();
+        var monitor = new ConnectivityMonitor(interop, options ?? new ConnectivityOptions());
         return (monitor, interop);
     }
 
@@ -19,7 +19,7 @@ public class ConnectionStatusMonitorTests
     {
         var (monitor, _) = Create();
 
-        Assert.Equal(ConnectionState.Unknown, monitor.State);
+        Assert.Equal(ConnectivityState.Unknown, monitor.State);
         Assert.False(monitor.IsOnline);
     }
 
@@ -35,7 +35,7 @@ public class ConnectionStatusMonitorTests
     [Fact]
     public async Task StartAsync_hands_the_configured_options_to_the_browser()
     {
-        var options = new ConnectionStatusOptions
+        var options = new ConnectivityOptions
         {
             PingUrl = "/healthz",
             PingInterval = TimeSpan.FromSeconds(20),
@@ -63,7 +63,7 @@ public class ConnectionStatusMonitorTests
     [Fact]
     public async Task StartAsync_rejects_options_that_cannot_work()
     {
-        var (monitor, interop) = Create(new ConnectionStatusOptions
+        var (monitor, interop) = Create(new ConnectivityOptions
         {
             PingUrl = "/healthz",
             PingInterval = TimeSpan.FromSeconds(5),
@@ -92,36 +92,36 @@ public class ConnectionStatusMonitorTests
     public async Task An_online_observation_moves_the_state_and_raises_the_event()
     {
         var (monitor, interop) = Create();
-        var raised = new List<ConnectionState>();
+        var raised = new List<ConnectivityState>();
         monitor.StatusChanged += (_, state) => raised.Add(state);
 
         await monitor.StartAsync();
         interop.Observe(isOnline: true);
 
-        Assert.Equal(ConnectionState.Online, monitor.State);
+        Assert.Equal(ConnectivityState.Online, monitor.State);
         Assert.True(monitor.IsOnline);
-        Assert.Equal(new[] { ConnectionState.Online }, raised);
+        Assert.Equal(new[] { ConnectivityState.Online }, raised);
     }
 
     [Fact]
     public async Task The_first_offline_observation_raises_the_event_even_though_Unknown_was_not_online()
     {
         var (monitor, interop) = Create();
-        var raised = new List<ConnectionState>();
+        var raised = new List<ConnectivityState>();
         monitor.StatusChanged += (_, state) => raised.Add(state);
 
         await monitor.StartAsync();
         interop.Observe(isOnline: false);
 
-        Assert.Equal(ConnectionState.Offline, monitor.State);
-        Assert.Equal(new[] { ConnectionState.Offline }, raised);
+        Assert.Equal(ConnectivityState.Offline, monitor.State);
+        Assert.Equal(new[] { ConnectivityState.Offline }, raised);
     }
 
     [Fact]
     public async Task Repeated_observations_of_the_same_state_raise_one_event()
     {
         var (monitor, interop) = Create();
-        var raised = new List<ConnectionState>();
+        var raised = new List<ConnectivityState>();
         monitor.StatusChanged += (_, state) => raised.Add(state);
 
         await monitor.StartAsync();
@@ -129,14 +129,14 @@ public class ConnectionStatusMonitorTests
         interop.Observe(isOnline: true);
         interop.Observe(isOnline: true);
 
-        Assert.Equal(new[] { ConnectionState.Online }, raised);
+        Assert.Equal(new[] { ConnectivityState.Online }, raised);
     }
 
     [Fact]
     public async Task Every_transition_raises_an_event()
     {
         var (monitor, interop) = Create();
-        var raised = new List<ConnectionState>();
+        var raised = new List<ConnectivityState>();
         monitor.StatusChanged += (_, state) => raised.Add(state);
 
         await monitor.StartAsync();
@@ -145,7 +145,7 @@ public class ConnectionStatusMonitorTests
         interop.Observe(isOnline: true);
 
         Assert.Equal(
-            new[] { ConnectionState.Online, ConnectionState.Offline, ConnectionState.Online },
+            new[] { ConnectivityState.Online, ConnectivityState.Offline, ConnectivityState.Online },
             raised);
     }
 
@@ -166,7 +166,7 @@ public class ConnectionStatusMonitorTests
 
         var result = await monitor.CheckNowAsync();
 
-        Assert.Equal(ConnectionState.Online, result);
+        Assert.Equal(ConnectivityState.Online, result);
         Assert.Equal(1, interop.CheckNowCount);
     }
 
@@ -181,7 +181,7 @@ public class ConnectionStatusMonitorTests
 
         interop.Observe(isOnline: false);
 
-        Assert.Equal(ConnectionState.Offline, await pending);
+        Assert.Equal(ConnectivityState.Offline, await pending);
     }
 
     [Fact]
@@ -195,8 +195,8 @@ public class ConnectionStatusMonitorTests
 
         interop.Observe(isOnline: true);
 
-        Assert.Equal(ConnectionState.Online, await first);
-        Assert.Equal(ConnectionState.Online, await second);
+        Assert.Equal(ConnectivityState.Online, await first);
+        Assert.Equal(ConnectivityState.Online, await second);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class ConnectionStatusMonitorTests
         var pending = monitor.CheckNowAsync();
         interop.Observe(isOnline: true);
 
-        Assert.Equal(ConnectionState.Online, await pending);
+        Assert.Equal(ConnectivityState.Online, await pending);
     }
 
     [Fact]
@@ -285,6 +285,6 @@ public class ConnectionStatusMonitorTests
 
         monitor.OnConnectionStatusObserved(isOnline: true);
 
-        Assert.Equal(ConnectionState.Unknown, monitor.State);
+        Assert.Equal(ConnectivityState.Unknown, monitor.State);
     }
 }
