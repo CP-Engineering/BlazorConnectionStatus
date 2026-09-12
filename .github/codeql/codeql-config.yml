@@ -1,0 +1,13 @@
+name: CPE.BlazorConnectionStatus CodeQL config
+
+# Scope the JavaScript scan to code this repo actually ships or tests. Without this, CodeQL walks
+# node_modules and the throwaway consumer app under artifacts/ and reports other people's code.
+paths:
+  - src
+  - tests
+
+paths-ignore:
+  - "**/node_modules"
+  - "**/bin"
+  - "**/obj"
+  - artifacts

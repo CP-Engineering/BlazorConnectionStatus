@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CPE.BlazorConnectionStatus/CPE.BlazorConnectionStatus.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CPE.BlazorConnectionStatus.Tests/CPE.BlazorConnectionStatus.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,134 @@
+name: Publish to NuGet
+
+# Manual only, with the version typed in by hand. There is deliberately no default value: a
+# pre-filled version plus --skip-duplicate is how a run that published nothing still goes green.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to build and publish (e.g. 0.9.0). Must match the csproj."
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write # trusted publishing; no API key is stored anywhere
+
+jobs:
+  publish:
+    name: Pack and push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # The workflow packs HEAD, not your working tree. A corrected csproj that was staged but
+      # never committed ships the old bug, which is exactly how 1.2.1 of a sibling package went out
+      # identical to 1.2.0.
+      - name: Check the requested version matches the committed csproj
+        shell: bash
+        run: |
+          set -euo pipefail
+          CSPROJ=src/CPE.BlazorConnectionStatus/CPE.BlazorConnectionStatus.csproj
+          COMMITTED=$(grep -oPm1 '(?<=<Version>)[^<]+' "$CSPROJ")
+          echo "Requested: ${{ inputs.version }}"
+          echo "Committed: $COMMITTED"
+          if [ "$COMMITTED" != "${{ inputs.version }}" ]; then
+            echo "::error::csproj says $COMMITTED but you asked for ${{ inputs.version }}. Commit the version bump first."
+            exit 1
+          fi
+
+      - name: Refuse to publish a version that already exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://api.nuget.org/v3-flatcontainer/cpe.blazorconnectionstatus/${{ inputs.version }}/cpe.blazorconnectionstatus.${{ inputs.version }}.nupkg"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -L "$URL")
+          if [ "$CODE" = "200" ]; then
+            echo "::error::${{ inputs.version }} is already on nuget.org. Bump the version."
+            exit 1
+          fi
+          echo "Not yet published (HTTP $CODE). Proceeding."
+
+      - name: Restore
+        run: dotnet restore CPE.BlazorConnectionStatus.slnx
+
+      - name: Build
+        run: dotnet build CPE.BlazorConnectionStatus.slnx -c Release --no-restore
+
+      - name: Test (.NET)
+        run: dotnet test CPE.BlazorConnectionStatus.slnx -c Release --no-build
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install JS test harness
+        run: npm ci --include=dev
+        env:
+          NODE_ENV: development
+
+      - name: Test (ES module)
+        run: npm test
+
+      - name: Pack
+        run: dotnet pack src/CPE.BlazorConnectionStatus/CPE.BlazorConnectionStatus.csproj -c Release --no-build -o artifacts
+
+      - name: Confirm the module is in the package
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG=artifacts/CPE.BlazorConnectionStatus.${{ inputs.version }}.nupkg
+          unzip -l "$PKG"
+          unzip -l "$PKG" | grep -q 'staticwebassets/connection-status.js' \
+            || { echo "::error::connection-status.js is not in the package."; exit 1; }
+
+      - name: Authenticate to NuGet (trusted publishing)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER || 'gismofx' }}
+
+      - name: Push
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+
+      # --skip-duplicate and a silent no-op both look like success. Only the far side proves it.
+      - name: Wait for the package to go live
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://api.nuget.org/v3-flatcontainer/cpe.blazorconnectionstatus/${{ inputs.version }}/cpe.blazorconnectionstatus.${{ inputs.version }}.nupkg"
+          for attempt in $(seq 1 40); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -L "$URL")
+            if [ "$CODE" = "200" ]; then
+              echo "Live after $((attempt * 30))s."
+              exit 0
+            fi
+            echo "Attempt $attempt: HTTP $CODE; indexing can lag. Waiting."
+            sleep 30
+          done
+          echo "::error::${{ inputs.version }} was not retrievable after 20 minutes."
+          exit 1
+
+      - name: Tag the release
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-${{ inputs.version }}
+          path: artifacts/*.nupkg
+          if-no-files-found: error

@@ -427,3 +427,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# vitest coverage output (the GitHub template covers coverage*.json, not the folder)
+coverage/

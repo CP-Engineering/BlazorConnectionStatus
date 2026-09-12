@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore CPE.BlazorConnectionStatus.slnx
+
+      - name: Build
+        run: dotnet build CPE.BlazorConnectionStatus.slnx -c Release --no-restore
+
+      - name: Test (.NET, both target frameworks)
+        run: dotnet test CPE.BlazorConnectionStatus.slnx -c Release --no-build --verbosity normal
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # NODE_ENV is production on some machines, which makes a bare `npm ci` skip the test
+      # harness entirely and then "pass" with nothing run.
+      - name: Install JS test harness
+        run: npm ci --include=dev
+        env:
+          NODE_ENV: development
+
+      - name: Test (ES module)
+        run: npm test
+
+      - name: Pack
+        run: dotnet pack src/CPE.BlazorConnectionStatus/CPE.BlazorConnectionStatus.csproj -c Release --no-build -o artifacts
+
+      # The path a consumer resolves is the contract, and the package's own metadata cannot
+      # confirm it. Build a throwaway consumer against the packed nupkg and read the path back.
+      - name: Verify the static web asset path from a consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet new blazorwasm -o /tmp/consumer -f net8.0 --no-https
+          cat > /tmp/consumer/nuget.config <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="LOCAL_FEED" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+          sed -i "s|LOCAL_FEED|$GITHUB_WORKSPACE/artifacts|" /tmp/consumer/nuget.config
+          VERSION=$(ls artifacts/CPE.BlazorConnectionStatus.*.nupkg | head -n1 | sed -E 's/.*CPE\.BlazorConnectionStatus\.(.*)\.nupkg/\1/')
+          dotnet add /tmp/consumer package CPE.BlazorConnectionStatus --version "$VERSION"
+          dotnet publish /tmp/consumer -c Debug -o /tmp/consumer/pub
+          EXPECTED=/tmp/consumer/pub/wwwroot/_content/CPE.BlazorConnectionStatus/connection-status.js
+          if [ ! -f "$EXPECTED" ]; then
+            echo "::error::The module did not land at _content/CPE.BlazorConnectionStatus/connection-status.js"
+            find /tmp/consumer/pub/wwwroot/_content -type f || echo "(no _content at all)"
+            exit 1
+          fi
+          echo "Consumer resolved: $EXPECTED"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error

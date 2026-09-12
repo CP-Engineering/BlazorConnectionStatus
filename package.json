@@ -1,0 +1,15 @@
+{
+  "name": "cpe-blazorconnectionstatus",
+  "private": true,
+  "type": "module",
+  "description": "Test harness for the ES module shipped inside the CPE.BlazorConnectionStatus NuGet package. Nothing here is published to npm.",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}
