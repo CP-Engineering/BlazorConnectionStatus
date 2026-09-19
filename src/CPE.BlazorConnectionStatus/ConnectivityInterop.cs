@@ -1,4 +1,4 @@
-using Microsoft.JSInterop;
+﻿using Microsoft.JSInterop;
 
 namespace CPE.BlazorConnectionStatus;
 
@@ -37,13 +37,43 @@ internal sealed class ConnectivityInterop : IConnectivityInterop
             "create",
             cancellationToken,
             callback,
-            new
-            {
-                pingUrl = options.PingUrl,
-                pingIntervalMs = (int)options.PingInterval.TotalMilliseconds,
-                pingTimeoutMs = (int)options.PingTimeout.TotalMilliseconds,
-            }).ConfigureAwait(false);
+            CreateArguments(options)).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Builds the options object the JS module's <c>create</c> reads.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A dictionary of primitives, deliberately - not an anonymous type, and not a record or class.
+    /// Until 0.10.1 this was an anonymous type, which worked in every Debug run and failed in every
+    /// trimmed Release publish with <c>ConstructorContainsNullParameterNames</c>. The library is
+    /// <c>IsTrimmable</c>, so the trimmer strips the parameter names off the anonymous type's
+    /// constructor; System.Text.Json builds constructor metadata even when it is only writing, finds
+    /// the names gone, and throws. <c>StartAsync</c> never completed, and the monitor sat at its
+    /// initial state for good.
+    /// </para>
+    /// <para>
+    /// A named class with a parameterless constructor would dodge that particular throw, but its
+    /// property getters are reached only by reflection, which the trimmer cannot see - so in a
+    /// trimmed build they are candidates for removal, and the module would receive <c>{}</c> and
+    /// quietly fall back to its defaults. That is a worse failure than a crash, because it looks
+    /// like it works. A dictionary of string and int needs only the serializer's built-in
+    /// converters, which are always kept.
+    /// </para>
+    /// <para>
+    /// The keys are a wire contract with <c>create</c> in <c>connection-status.js</c>, which reads
+    /// exactly these three. Nothing but <c>ConnectivityInteropTests</c> checks the two agree.
+    /// </para>
+    /// </remarks>
+    /// <param name="options">The monitor's settings.</param>
+    /// <returns>The object passed as <c>create</c>'s second argument.</returns>
+    internal static Dictionary<string, object?> CreateArguments(ConnectivityOptions options) => new()
+    {
+        ["pingUrl"] = options.PingUrl,
+        ["pingIntervalMs"] = (int)options.PingInterval.TotalMilliseconds,
+        ["pingTimeoutMs"] = (int)options.PingTimeout.TotalMilliseconds,
+    };
 
     public async Task CheckNowAsync(CancellationToken cancellationToken = default)
     {
